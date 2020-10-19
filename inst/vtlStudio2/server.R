@@ -84,75 +84,52 @@ shinyServer(function(input, output, session) {
   })
 
   # output VTL result  
-  observe({
+  output$datasets <- DT::renderDataTable({
     req(input$sessionID)
     req(input$selectDatasets)
     req(input$maxlines)
-    withProgress(message = 'Computing requested values...', value = 0, {
-      tryCatch({ 
-        maxlines = as.integer(input$maxlines)
-        result = NULL
-        nodes = evalNode()
-        setProgress(value = 0.5)
-        if(length(nodes) > 0){
-          ddf = nodes[[1]]
-          if(ncol(ddf) >= 1 && names(ddf)[1] != 'Scalar'){
-            linesLimit = ifelse(nrow(ddf) > maxlines , yes = maxlines, no = nrow(ddf))
-            ddf = ddf[1:linesLimit,]
-            #not a scalar, order columns and add component role
-            neworder = which(names(ddf) %in% attr(ddf, 'measures'))
-            neworder = c(neworder, which(names(ddf) %in% attr(ddf, 'identifiers')))
-            if(input$showAttrs){
-              neworder = c(neworder, which(!(1:ncol(ddf) %in% neworder)))
-            }
-            
-            names(ddf) = sapply(names(ddf), function(x, ddf) {
-              if(x %in% attr(ddf, 'identifiers')){
-                return(paste0(x, ' (', 'I', ') '))
-              }
-              else if(x %in% attr(ddf, 'measures')){
-                return(paste0(x, ' (', 'M', ') '))
-              }
-              else{
-                return(x)
-              }
-            }, ddf)
-            
-            if(ncol(ddf) > 1){
-              result = ddf[,neworder]
-            }
-            
+    maxlines = as.integer(input$maxlines)
+    result = NULL
+    nodes = evalNode()
+    if(length(nodes) > 0){
+      ddf = nodes[[1]]
+      if(ncol(ddf) >= 1 && names(ddf)[1] != 'Scalar'){
+        linesLimit = ifelse(nrow(ddf) > maxlines , yes = maxlines, no = nrow(ddf))
+        ddf = ddf[1:linesLimit,]
+        #not a scalar, order columns and add component role
+        neworder = which(names(ddf) %in% attr(ddf, 'measures'))
+        neworder = c(neworder, which(names(ddf) %in% attr(ddf, 'identifiers')))
+        if(input$showAttrs){
+          neworder = c(neworder, which(!(1:ncol(ddf) %in% neworder)))
+        }
+        
+        names(ddf) = sapply(names(ddf), function(x, ddf) {
+          if(x %in% attr(ddf, 'identifiers')){
+            return(paste0(x, ' (', 'I', ') '))
+          }
+          else if(x %in% attr(ddf, 'measures')){
+            return(paste0(x, ' (', 'M', ') '))
           }
           else{
-            result = ddf
+            return(x)
           }
+        }, ddf)
+        
+        if(ncol(ddf) > 1){
+          result = ddf[,neworder]
         }
-        setProgress(value = 0.75)
-        output$datasets <- DT::renderDataTable(ddf, options = list(
-              lengthMenu = list(c(50, 1000, -1), c('50', '1000', 'All')),
-              pageLength = 10
-        ))
-        setProgress(value = 1)
-      }, error = function(e) {
-        message = conditionMessage(e)
-        if (is.list(e) && !is.null(e[['jobj']]))
-        {
-          output$vtl_output <- renderText({
-          	stringwriter <- .jnew("java/io/StringWriter")
-          	printwriter <- .jnew("java/io/PrintWriter", stringwriter)
-          	e$jobj$printStackTrace(printwriter)
-          	printwriter$flush()
-          	message <<- stringwriter$toString()
-          	return(message)
-          })
-        }
-        setProgress(value = 1)
-        print(paste0("Unexpected error: ", message))
-        return(invisible())
-      })
-  	})
-  })
-     
+        
+      }
+      else{
+        result = ddf
+      }
+    }
+    return(result)
+  }, options = list(
+    lengthMenu = list(c(50, 1000, -1), c('50', '1000', 'All')),
+    pageLength = 10
+  ))
+  
   #####
   ##### End Dynamic Input controls
   #####
