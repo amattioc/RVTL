@@ -1,5 +1,5 @@
 Package: RVTL
-Version: 1.0.6
+Version: 1.0.8-20210513144451
 Title: R Wrapper for VTL Engine
 Author: Valentino Pinna, Attilio Mattiocco, Banca d'Italia
 Maintainer: Valentino Pinna <valentino.pinna@bancaditalia.it>

@@ -1,6 +1,6 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.vtl = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-/*******************************************************************************
- * Copyright 2020, Bank Of Italy
+/*
+ * Copyright © 2020 Banca D'Italia
  *
  * Licensed under the EUPL, Version 1.2 (the "License");
  * You may not use this work except in compliance with the
@@ -17,7 +17,7 @@
  *
  * See the License for the specific language governing
  * permissions and limitations under the License.
- *******************************************************************************/
+ */
 require("codemirror");
 //require("codemirror/addon/hint/show-hint")
 require("codemirror/addon/edit/closebrackets")
@@ -10551,7 +10551,6 @@ exports.ParserRuleContext = ParserRuleContext;
 
 var RuleContext = require('./RuleContext').RuleContext;
 var Hash = require('./Utils').Hash;
-var Map = require('./Utils').Map;
 
 function PredictionContext(cachedHashCode) {
 	this.cachedHashCode = cachedHashCode;
@@ -10624,7 +10623,7 @@ function calculateHashString(parent, returnState) {
 // can be used for both lexers and parsers.
 
 function PredictionContextCache() {
-	this.cache = new Map();
+	this.cache = {};
 	return this;
 }
 
@@ -10636,16 +10635,16 @@ PredictionContextCache.prototype.add = function(ctx) {
 	if (ctx === PredictionContext.EMPTY) {
 		return PredictionContext.EMPTY;
 	}
-	var existing = this.cache.get(ctx) || null;
+	var existing = this.cache[ctx] || null;
 	if (existing !== null) {
 		return existing;
 	}
-	this.cache.put(ctx, ctx);
+	this.cache[ctx] = ctx;
 	return ctx;
 };
 
 PredictionContextCache.prototype.get = function(ctx) {
-	return this.cache.get(ctx) || null;
+	return this.cache[ctx] || null;
 };
 
 Object.defineProperty(PredictionContextCache.prototype, "length", {
@@ -10656,13 +10655,11 @@ Object.defineProperty(PredictionContextCache.prototype, "length", {
 
 function SingletonPredictionContext(parent, returnState) {
 	var hashCode = 0;
-	var hash = new Hash();
 	if(parent !== null) {
+		var hash = new Hash();
 		hash.update(parent, returnState);
-	} else {
-		hash.update(1);
+        hashCode = hash.finish();
 	}
-	hashCode = hash.finish();
 	PredictionContext.call(this, hashCode);
 	this.parentCtx = parent;
 	this.returnState = returnState;
@@ -11187,16 +11184,16 @@ function mergeArrays(a, b, rootIsWildcard, mergeCache) {
 // ones.
 // /
 function combineCommonParents(parents) {
-	var uniqueParents = new Map();
+	var uniqueParents = {};
 
 	for (var p = 0; p < parents.length; p++) {
 		var parent = parents[p];
-		if (!(uniqueParents.containsKey(parent))) {
-			uniqueParents.put(parent, parent);
+		if (!(parent in uniqueParents)) {
+			uniqueParents[parent] = parent;
 		}
 	}
 	for (var q = 0; q < parents.length; q++) {
-		parents[q] = uniqueParents.get(parents[q]);
+		parents[q] = uniqueParents[parents[q]];
 	}
 }
 
@@ -11204,13 +11201,13 @@ function getCachedPredictionContext(context, contextCache, visited) {
 	if (context.isEmpty()) {
 		return context;
 	}
-	var existing = visited.get(context) || null;
+	var existing = visited[context] || null;
 	if (existing !== null) {
 		return existing;
 	}
 	existing = contextCache.get(context);
 	if (existing !== null) {
-		visited.put(context, existing);
+		visited[context] = existing;
 		return existing;
 	}
 	var changed = false;
@@ -11230,7 +11227,7 @@ function getCachedPredictionContext(context, contextCache, visited) {
 	}
 	if (!changed) {
 		contextCache.add(context);
-		visited.put(context, context);
+		visited[context] = context;
 		return context;
 	}
 	var updated = null;
@@ -11243,8 +11240,8 @@ function getCachedPredictionContext(context, contextCache, visited) {
 		updated = new ArrayPredictionContext(parents, context.returnStates);
 	}
 	contextCache.add(updated);
-	visited.put(updated, updated);
-	visited.put(context, updated);
+	visited[updated] = updated;
+	visited[context] = updated;
 
 	return updated;
 }
@@ -11255,13 +11252,13 @@ function getAllContextNodes(context, nodes, visited) {
 		nodes = [];
 		return getAllContextNodes(context, nodes, visited);
 	} else if (visited === null) {
-		visited = new Map();
+		visited = {};
 		return getAllContextNodes(context, nodes, visited);
 	} else {
-		if (context === null || visited.containsKey(context)) {
+		if (context === null || visited[context] !== null) {
 			return nodes;
 		}
-		visited.put(context, context);
+		visited[context] = context;
 		nodes.push(context);
 		for (var i = 0; i < context.length; i++) {
 			getAllContextNodes(context.getParent(i), nodes, visited);
@@ -11301,7 +11298,7 @@ Recognizer.ruleIndexMapCache = {};
 
 
 Recognizer.prototype.checkVersion = function(toolVersion) {
-    var runtimeVersion = "4.8";
+    var runtimeVersion = "4.7.2";
     if (runtimeVersion!==toolVersion) {
         console.log("ANTLR runtime and generated code versions disagree: "+runtimeVersion+"!="+toolVersion);
     }
@@ -12064,9 +12061,7 @@ AltDict.prototype.values = function () {
     });
 };
 
-function DoubleDict(defaultMapCtor) {
-    this.defaultMapCtor = defaultMapCtor || Map;
-    this.cacheMap = new this.defaultMapCtor();
+function DoubleDict() {
     return this;
 }
 
@@ -12082,7 +12077,7 @@ Hash.prototype.update = function () {
         if (value == null)
             continue;
         if(Array.isArray(value))
-            this.update.apply(this, value);
+            this.update.apply(value);
         else {
             var k = 0;
             switch (typeof(value)) {
@@ -12097,10 +12092,7 @@ Hash.prototype.update = function () {
                     k = value.hashCode();
                     break;
                 default:
-                    if(value.updateHashCode)
-                        value.updateHashCode(this);
-                    else
-                        console.log("No updateHashCode for " + value.toString())
+                    value.updateHashCode(this);
                     continue;
             }
             k = k * 0xCC9E2D51;
@@ -12113,7 +12105,7 @@ Hash.prototype.update = function () {
             this.hash = hash;
         }
     }
-};
+}
 
 Hash.prototype.finish = function () {
     var hash = this.hash ^ (this.count * 4);
@@ -12123,26 +12115,26 @@ Hash.prototype.finish = function () {
     hash = hash * 0xC2B2AE35;
     hash = hash ^ (hash >>> 16);
     return hash;
-};
+}
 
 function hashStuff() {
     var hash = new Hash();
-    hash.update.apply(hash, arguments);
+    hash.update.apply(arguments);
     return hash.finish();
 }
 
 DoubleDict.prototype.get = function (a, b) {
-    var d = this.cacheMap.get(a) || null;
-    return d === null ? null : (d.get(b) || null);
+    var d = this[a] || null;
+    return d === null ? null : (d[b] || null);
 };
 
 DoubleDict.prototype.set = function (a, b, o) {
-    var d = this.cacheMap.get(a) || null;
+    var d = this[a] || null;
     if (d === null) {
-        d = new this.defaultMapCtor();
-        this.cacheMap.put(a, d);
+        d = {};
+        this[a] = d;
     }
-    d.put(b, o);
+    d[b] = o;
 };
 
 
@@ -12689,7 +12681,7 @@ ATNConfigSet.prototype.equals = function(other) {
 
 ATNConfigSet.prototype.hashCode = function() {
     var hash = new Hash();
-	hash.update(this.configs);
+    this.updateHashCode(hash);
     return hash.finish();
 };
 
@@ -12697,11 +12689,13 @@ ATNConfigSet.prototype.hashCode = function() {
 ATNConfigSet.prototype.updateHashCode = function(hash) {
 	if (this.readOnly) {
 		if (this.cachedHashCode === -1) {
-            this.cachedHashCode = this.hashCode();
+            var hash = new Hash();
+            hash.update(this.configs);
+			this.cachedHashCode = hash.finish();
 		}
         hash.update(this.cachedHashCode);
 	} else {
-        hash.update(this.hashCode());
+        hash.update(this.configs);
 	}
 };
 
@@ -12934,7 +12928,7 @@ ATNDeserializer.prototype.deserialize = function(data) {
 ATNDeserializer.prototype.reset = function(data) {
 	var adjust = function(c) {
         var v = c.charCodeAt(0);
-        return v>1  ? v-2 : v + 65534;
+        return v>1  ? v-2 : v + 65533;
 	};
     var temp = data.split("").map(adjust);
     // don't adjust the first value since that's the version number
@@ -13483,7 +13477,6 @@ exports.ATNDeserializer = ATNDeserializer;
 var DFAState = require('./../dfa/DFAState').DFAState;
 var ATNConfigSet = require('./ATNConfigSet').ATNConfigSet;
 var getCachedPredictionContext = require('./../PredictionContext').getCachedPredictionContext;
-var Map = require('./../Utils').Map;
 
 function ATNSimulator(atn, sharedContextCache) {
 
@@ -13520,13 +13513,13 @@ ATNSimulator.prototype.getCachedContext = function(context) {
     if (this.sharedContextCache ===null) {
         return context;
     }
-    var visited = new Map();
+    var visited = {};
     return getCachedPredictionContext(context, this.sharedContextCache, visited);
 };
 
 exports.ATNSimulator = ATNSimulator;
 
-},{"./../PredictionContext":54,"./../Utils":58,"./../dfa/DFAState":77,"./ATNConfigSet":61}],65:[function(require,module,exports){
+},{"./../PredictionContext":54,"./../dfa/DFAState":77,"./ATNConfigSet":61}],65:[function(require,module,exports){
 //
 /* Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
  * Use of this file is governed by the BSD 3-clause license that
@@ -18449,6 +18442,12 @@ DFAState.prototype.toString = function() {
 DFAState.prototype.hashCode = function() {
 	var hash = new Hash();
 	hash.update(this.configs);
+	if(this.isAcceptState) {
+        if (this.predicates !== null)
+            hash.update(this.predicates);
+        else
+            hash.update(this.prediction);
+    }
     return hash.finish();
 };
 
@@ -20411,11 +20410,12 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
 
   function onComposition(cm) {
     setTimeout(function() {
-      var empty = false, input = cm.getInputField()
-      if (input.nodeName == "TEXTAREA")
-        empty = !input.value
-      else if (cm.lineCount() == 1)
-        empty = !/[^\u200b]/.test(input.querySelector(".CodeMirror-line").textContent)
+      var empty = false
+      if (cm.lineCount() == 1) {
+        var input = cm.getInputField()
+        empty = input.nodeName == "TEXTAREA" ? !cm.getLine(0).length
+          : !/[^\u200b]/.test(input.querySelector(".CodeMirror-line").textContent)
+      }
       if (empty) setPlaceholder(cm)
       else clearPlaceholder(cm)
     }, 20)
@@ -20527,7 +20527,7 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
     cm.operation(function() {
       var linesep = cm.lineSeparator() || "\n";
       cm.replaceSelection(linesep + linesep, null);
-      cm.execCommand("goCharLeft");
+      moveSel(cm, -1)
       ranges = cm.listSelections();
       for (var i = 0; i < ranges.length; i++) {
         var line = ranges[i].head.line;
@@ -20535,6 +20535,17 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
         cm.indentLine(line + 1, null, true);
       }
     });
+  }
+
+  function moveSel(cm, dir) {
+    var newRanges = [], ranges = cm.listSelections(), primary = 0
+    for (var i = 0; i < ranges.length; i++) {
+      var range = ranges[i]
+      if (range.head == cm.getCursor()) primary = i
+      var pos = range.head.ch || dir > 0 ? {line: range.head.line, ch: range.head.ch + dir} : {line: range.head.line - 1}
+      newRanges.push({anchor: pos, head: pos})
+    }
+    cm.setSelections(newRanges, primary)
   }
 
   function contractSelection(sel) {
@@ -20593,10 +20604,9 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
     var right = pos % 2 ? ch : pairs.charAt(pos + 1);
     cm.operation(function() {
       if (type == "skip") {
-        cm.execCommand("goCharRight");
+        moveSel(cm, 1)
       } else if (type == "skipThree") {
-        for (var i = 0; i < 3; i++)
-          cm.execCommand("goCharRight");
+        moveSel(cm, 3)
       } else if (type == "surround") {
         var sels = cm.getSelections();
         for (var i = 0; i < sels.length; i++)
@@ -20609,10 +20619,10 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
       } else if (type == "both") {
         cm.replaceSelection(left + right, null);
         cm.triggerElectric(left + right);
-        cm.execCommand("goCharLeft");
+        moveSel(cm, -1)
       } else if (type == "addFour") {
         cm.replaceSelection(left + left + left + left, "before");
-        cm.execCommand("goCharRight");
+        moveSel(cm, 1)
       }
     });
   }
@@ -20671,7 +20681,7 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
     if (config && config.strict && (dir > 0) != (pos == where.ch)) return null;
     var style = cm.getTokenTypeAt(Pos(where.line, pos + 1));
 
-    var found = scanForBracket(cm, Pos(where.line, pos + (dir > 0 ? 1 : 0)), dir, style || null, config);
+    var found = scanForBracket(cm, Pos(where.line, pos + (dir > 0 ? 1 : 0)), dir, style, config);
     if (found == null) return null;
     return {from: Pos(where.line, pos), to: found && found.pos,
             match: found && found.ch == match.charAt(0), forward: dir > 0};
@@ -20700,7 +20710,8 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
       if (lineNo == where.line) pos = where.ch - (dir < 0 ? 1 : 0);
       for (; pos != end; pos += dir) {
         var ch = line.charAt(pos);
-        if (re.test(ch) && (style === undefined || cm.getTokenTypeAt(Pos(lineNo, pos + 1)) == style)) {
+        if (re.test(ch) && (style === undefined ||
+                            (cm.getTokenTypeAt(Pos(lineNo, pos + 1)) || "") == (style || ""))) {
           var match = matching[ch];
           if (match && (match.charAt(1) == ">") == (dir > 0)) stack.push(ch);
           else if (!stack.length) return {pos: Pos(lineNo, pos), ch: ch};
@@ -20713,11 +20724,12 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
 
   function matchBrackets(cm, autoclear, config) {
     // Disable brace matching in long lines, since it'll cause hugely slow updates
-    var maxHighlightLen = cm.state.matchBrackets.maxHighlightLineLength || 1000;
+    var maxHighlightLen = cm.state.matchBrackets.maxHighlightLineLength || 1000,
+      highlightNonMatching = config && config.highlightNonMatching;
     var marks = [], ranges = cm.listSelections();
     for (var i = 0; i < ranges.length; i++) {
       var match = ranges[i].empty() && findMatchingBracket(cm, ranges[i].head, config);
-      if (match && cm.getLine(match.from.line).length <= maxHighlightLen) {
+      if (match && (match.match || highlightNonMatching !== false) && cm.getLine(match.from.line).length <= maxHighlightLen) {
         var style = match.match ? "CodeMirror-matchingbracket" : "CodeMirror-nonmatchingbracket";
         marks.push(cm.markText(match.from, Pos(match.from.line, match.from.ch + 1), {className: style}));
         if (match.to && cm.getLine(match.to.line).length <= maxHighlightLen)
@@ -20727,7 +20739,7 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
 
     if (marks.length) {
       // Kludge to work around the IE bug from issue #1193, where text
-      // input stops going to the textare whever this fires.
+      // input stops going to the textarea whenever this fires.
       if (ie_lt8 && cm.state.focused) cm.focus();
 
       var clear = function() {
@@ -20750,25 +20762,25 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
     });
   }
 
-  CodeMirror.defineOption("matchBrackets", false, function(cm, val, old) {
-    function clear(cm) {
-      if (cm.state.matchBrackets && cm.state.matchBrackets.currentlyHighlighted) {
-        cm.state.matchBrackets.currentlyHighlighted();
-        cm.state.matchBrackets.currentlyHighlighted = null;
-      }
+  function clearHighlighted(cm) {
+    if (cm.state.matchBrackets && cm.state.matchBrackets.currentlyHighlighted) {
+      cm.state.matchBrackets.currentlyHighlighted();
+      cm.state.matchBrackets.currentlyHighlighted = null;
     }
+  }
 
+  CodeMirror.defineOption("matchBrackets", false, function(cm, val, old) {
     if (old && old != CodeMirror.Init) {
       cm.off("cursorActivity", doMatchBrackets);
       cm.off("focus", doMatchBrackets)
-      cm.off("blur", clear)
-      clear(cm);
+      cm.off("blur", clearHighlighted)
+      clearHighlighted(cm);
     }
     if (val) {
       cm.state.matchBrackets = typeof val == "object" ? val : {};
       cm.on("cursorActivity", doMatchBrackets);
       cm.on("focus", doMatchBrackets)
-      cm.on("blur", clear)
+      cm.on("blur", clearHighlighted)
     }
   });
 
@@ -20963,6 +20975,10 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
       var anns = annotations[line];
       if (!anns) continue;
 
+      // filter out duplicate messages
+      var message = [];
+      anns = anns.filter(function(item) { return message.indexOf(item.message) > -1 ? false : message.push(item.message) });
+
       var maxSeverity = null;
       var tipLabel = state.hasGutter && document.createDocumentFragment();
 
@@ -20980,9 +20996,9 @@ exports.ParseTreeWalker = Tree.ParseTreeWalker;
           __annotation: ann
         }));
       }
-
+      // use original annotations[line] to show multiple messages
       if (state.hasGutter)
-        cm.setGutterMarker(line, GUTTER_ID, makeMarker(cm, tipLabel, maxSeverity, anns.length > 1,
+        cm.setGutterMarker(line, GUTTER_ID, makeMarker(cm, tipLabel, maxSeverity, annotations[line].length > 1,
                                                        state.options.tooltips));
     }
     if (options.onUpdateLinting) options.onUpdateLinting(annotationsNotSorted, annotations, cm);
@@ -21117,7 +21133,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     if (!stream.string && mode.blankLine) mode.blankLine(state);
     while (!stream.eol()) {
       var style = mode.token(stream, state);
-      callback(stream.current(), style, i, stream.start, state);
+      callback(stream.current(), style, i, stream.start, state, mode);
       stream.start = stream.pos;
     }
   }
@@ -21744,6 +21760,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     { name: 'yank', shortName: 'y' },
     { name: 'delmarks', shortName: 'delm' },
     { name: 'registers', shortName: 'reg', excludeFromCommandHistory: true },
+    { name: 'vglobal', shortName: 'v' },
     { name: 'global', shortName: 'g' }
   ];
 
@@ -21853,7 +21870,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       return cmd;
     }
 
-    var modifiers = {'Shift': 'S', 'Ctrl': 'C', 'Alt': 'A', 'Cmd': 'D', 'Mod': 'A'};
+    var modifiers = {Shift:'S',Ctrl:'C',Alt:'A',Cmd:'D',Mod:'A',CapsLock:''};
     var specialKeys = {Enter:'CR',Backspace:'BS',Delete:'Del',Insert:'Ins'};
     function cmKeyToVimKey(key) {
       if (key.charAt(0) == '\'') {
@@ -22237,7 +22254,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
         // TODO: Convert keymap into dictionary format for fast lookup.
       },
       // Testing hook, though it might be useful to expose the register
-      // controller anyways.
+      // controller anyway.
       getRegisterController: function() {
         return vimGlobalState.registerController;
       },
@@ -22950,7 +22967,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
               showPrompt(cm, {
                   onClose: onPromptClose,
                   prefix: promptPrefix,
-                  desc: searchPromptDesc,
+                  desc: '(JavaScript regexp)',
                   onKeyUp: onPromptKeyUp,
                   onKeyDown: onPromptKeyDown
               });
@@ -24983,7 +25000,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
         },
         isComplete: function(state) {
           if (state.nextCh === '#') {
-            var token = state.lineText.match(/#(\w+)/)[1];
+            var token = state.lineText.match(/^#(\w+)/)[1];
             if (token === 'endif') {
               if (state.forward && state.depth === 0) {
                 return true;
@@ -25610,16 +25627,6 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       var vim = cm.state.vim;
       return vim.searchState_ || (vim.searchState_ = new SearchState());
     }
-    function dialog(cm, template, shortText, onClose, options) {
-      if (cm.openDialog) {
-        cm.openDialog(template, onClose, { bottom: true, value: options.value,
-            onKeyDown: options.onKeyDown, onKeyUp: options.onKeyUp,
-            selectValueOnOpen: false});
-      }
-      else {
-        onClose(prompt(shortText, ''));
-      }
-    }
     function splitBySlash(argString) {
       return splitBySeparator(argString, '/');
     }
@@ -25806,28 +25813,64 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
           (ignoreCase || forceIgnoreCase) ? 'i' : undefined);
       return regexp;
     }
-    function showConfirm(cm, text) {
+
+    /**
+     * dom - Document Object Manipulator
+     * Usage:
+     *   dom('<tag>'|<node>[, ...{<attributes>|<$styles>}|<child-node>|'<text>'])
+     * Examples:
+     *   dom('div', {id:'xyz'}, dom('p', 'CM rocks!', {$color:'red'}))
+     *   dom(document.head, dom('script', 'alert("hello!")'))
+     * Not supported:
+     *   dom('p', ['arrays are objects'], Error('objects specify attributes'))
+     */
+    function dom(n) {
+      if (typeof n === 'string') n = document.createElement(n);
+      for (var a, i = 1; i < arguments.length; i++) {
+        if (!(a = arguments[i])) continue;
+        if (typeof a !== 'object') a = document.createTextNode(a);
+        if (a.nodeType) n.appendChild(a);
+        else for (var key in a) {
+          if (!Object.prototype.hasOwnProperty.call(a, key)) continue;
+          if (key[0] === '$') n.style[key.slice(1)] = a[key];
+          else n.setAttribute(key, a[key]);
+        }
+      }
+      return n;
+    }
+
+    function showConfirm(cm, template) {
+      var pre = dom('pre', {$color: 'red'}, template);
       if (cm.openNotification) {
-        cm.openNotification('<span style="color: red">' + text + '</span>',
-                            {bottom: true, duration: 5000});
+        cm.openNotification(pre, {bottom: true, duration: 5000});
       } else {
-        alert(text);
+        alert(pre.innerText);
       }
     }
+
     function makePrompt(prefix, desc) {
-      var raw = '<span style="font-family: monospace; white-space: pre">' +
-          (prefix || "") + '<input type="text" autocorrect="off" ' +
-          'autocapitalize="off" spellcheck="false"></span>';
-      if (desc)
-        raw += ' <span style="color: #888">' + desc + '</span>';
-      return raw;
+      return dom(document.createDocumentFragment(),
+               dom('span', {$fontFamily: 'monospace', $whiteSpace: 'pre'},
+                 prefix,
+                 dom('input', {type: 'text', autocorrect: 'off',
+                               autocapitalize: 'off', spellcheck: 'false'})),
+               desc && dom('span', {$color: '#888'}, desc));
     }
-    var searchPromptDesc = '(Javascript regexp)';
+
     function showPrompt(cm, options) {
       var shortText = (options.prefix || '') + ' ' + (options.desc || '');
-      var prompt = makePrompt(options.prefix, options.desc);
-      dialog(cm, prompt, shortText, options.onClose, options);
+      var template = makePrompt(options.prefix, options.desc);
+      if (cm.openDialog) {
+        cm.openDialog(template, options.onClose, {
+          onKeyDown: options.onKeyDown, onKeyUp: options.onKeyUp,
+          bottom: true, selectValueOnOpen: false, value: options.value
+        });
+      }
+      else {
+        options.onClose(prompt(shortText, ''));
+      }
     }
+
     function regexEqual(r1, r2) {
       if (r1 instanceof RegExp && r2 instanceof RegExp) {
           var props = ['global', 'multiline', 'ignoreCase', 'source'];
@@ -26001,7 +26044,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       if (start instanceof Array) {
         return inArray(pos, start);
       } else {
-        if (end) {
+        if (typeof end == 'number') {
           return (pos >= start && pos <= end);
         } else {
           return pos == start;
@@ -26064,7 +26107,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
         try {
           this.parseInput_(cm, inputStream, params);
         } catch(e) {
-          showConfirm(cm, e);
+          showConfirm(cm, e.toString());
           throw e;
         }
         var command;
@@ -26108,7 +26151,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
             params.callback();
           }
         } catch(e) {
-          showConfirm(cm, e);
+          showConfirm(cm, e.toString());
           throw e;
         }
       },
@@ -26380,12 +26423,12 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       registers: function(cm, params) {
         var regArgs = params.args;
         var registers = vimGlobalState.registerController.registers;
-        var regInfo = '----------Registers----------<br><br>';
+        var regInfo = '----------Registers----------\n\n';
         if (!regArgs) {
           for (var registerName in registers) {
             var text = registers[registerName].toString();
             if (text.length) {
-              regInfo += '"' + registerName + '    ' + text + '<br>';
+              regInfo += '"' + registerName + '    ' + text + '\n'
             }
           }
         } else {
@@ -26397,7 +26440,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
               continue;
             }
             var register = registers[registerName] || new Register();
-            regInfo += '"' + registerName + '    ' + register.toString() + '<br>';
+            regInfo += '"' + registerName + '    ' + register.toString() + '\n'
           }
         }
         showConfirm(cm, regInfo);
@@ -26492,6 +26535,10 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
         }
         cm.replaceRange(text.join('\n'), curStart, curEnd);
       },
+      vglobal: function(cm, params) {
+        // global inspects params.commandName
+        this.global(cm, params);
+      },
       global: function(cm, params) {
         // a global command is of the form
         // :[range]g/pattern/[cmd]
@@ -26501,6 +26548,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
           showConfirm(cm, 'Regular Expression missing from global');
           return;
         }
+        var inverted = params.commandName[0] === 'v';
         // range is specified here
         var lineStart = (params.line !== undefined) ? params.line : cm.firstLine();
         var lineEnd = params.lineEnd || params.line || cm.lastLine();
@@ -26525,28 +26573,33 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
         // now that we have the regexPart, search for regex matches in the
         // specified range of lines
         var query = getSearchState(cm).getQuery();
-        var matchedLines = [], content = '';
+        var matchedLines = [];
         for (var i = lineStart; i <= lineEnd; i++) {
-          var matched = query.test(cm.getLine(i));
-          if (matched) {
-            matchedLines.push(i+1);
-            content+= cm.getLine(i) + '<br>';
+          var line = cm.getLineHandle(i);
+          var matched = query.test(line.text);
+          if (matched !== inverted) {
+            matchedLines.push(cmd ? line : line.text);
           }
         }
         // if there is no [cmd], just display the list of matched lines
         if (!cmd) {
-          showConfirm(cm, content);
+          showConfirm(cm, matchedLines.join('\n'));
           return;
         }
         var index = 0;
         var nextCommand = function() {
           if (index < matchedLines.length) {
-            var command = matchedLines[index] + cmd;
+            var line = matchedLines[index++];
+            var lineNum = cm.getLineNumber(line);
+            if (lineNum == null) {
+              nextCommand();
+              return;
+            }
+            var command = (lineNum + 1) + cmd;
             exCommandDispatcher.processCommand(cm, command, {
               callback: nextCommand
             });
           }
-          index++;
         };
         nextCommand();
       },
@@ -26566,9 +26619,11 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
               regexPart = new RegExp(regexPart).source; //normalize not escaped characters
           }
           replacePart = tokens[1];
-          if (regexPart && regexPart[regexPart.length - 1] === '$') {
-            regexPart = regexPart.slice(0, regexPart.length - 1) + '\\n';
-            replacePart = replacePart ? replacePart + '\n' : '\n';
+          // If the pattern ends with $ (line boundary assertion), change $ to \n.
+          // Caveat: this workaround cannot match on the last line of the document.
+          if (/(^|[^\\])(\\\\)*\$$/.test(regexPart)) {
+            regexPart = regexPart.slice(0, -1) + '\\n';
+            replacePart = (replacePart || '') + '\n';
           }
           if (replacePart !== undefined) {
             if (getOption('pcre')) {
@@ -26597,11 +26652,9 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
           if (flagsPart) {
             if (flagsPart.indexOf('c') != -1) {
               confirm = true;
-              flagsPart.replace('c', '');
             }
             if (flagsPart.indexOf('g') != -1) {
               global = true;
-              flagsPart.replace('g', '');
             }
             if (getOption('pcre')) {
                regexPart = regexPart + '/' + flagsPart;
@@ -26734,7 +26787,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     * @param {Cursor} lineEnd Line to stop replacing at.
     * @param {RegExp} query Query for performing matches with.
     * @param {string} replaceWith Text to replace matches with. May contain $1,
-    *     $2, etc for replacing captured groups using Javascript replace.
+    *     $2, etc for replacing captured groups using JavaScript replace.
     * @param {function()} callback A callback for when the replace is done.
     */
     function doReplace(cm, confirm, global, lineStart, lineEnd, searchCursor, query,
@@ -26742,7 +26795,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       // Set up all the functions.
       cm.state.vim.exMode = true;
       var done = false;
-      var lastPos = searchCursor.from();
+      var lastPos, modifiedLineNumber, joined;
       function replaceAll() {
         cm.operation(function() {
           while (!done) {
@@ -26755,14 +26808,18 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       function replace() {
         var text = cm.getRange(searchCursor.from(), searchCursor.to());
         var newText = text.replace(query, replaceWith);
+        var unmodifiedLineNumber = searchCursor.to().line;
         searchCursor.replace(newText);
+        modifiedLineNumber = searchCursor.to().line;
+        lineEnd += modifiedLineNumber - unmodifiedLineNumber;
+        joined = modifiedLineNumber < unmodifiedLineNumber;
       }
       function next() {
         // The below only loops to skip over multiple occurrences on the same
         // line when 'global' is not true.
         while(searchCursor.findNext() &&
               isInRange(searchCursor.from(), lineStart, lineEnd)) {
-          if (!global && lastPos && searchCursor.from().line == lastPos.line) {
+          if (!global && searchCursor.from().line == modifiedLineNumber && !joined) {
             continue;
           }
           cm.scrollIntoView(searchCursor.from(), 30);
@@ -26827,7 +26884,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
         return;
       }
       showPrompt(cm, {
-        prefix: 'replace with <strong>' + replaceWith + '</strong> (y/n/a/q/l)',
+        prefix: dom('span', 'replace with ', dom('strong', replaceWith), ' (y/n/a/q/l)'),
         onKeyDown: onPromptKeyDown
       });
     }
@@ -27035,9 +27092,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       clearFakeCursor(vim);
       // In visual mode, the cursor may be positioned over EOL.
       if (from.ch == cm.getLine(from.line).length) {
-        var widget = document.createElement("span");
-        widget.textContent = "\u00a0";
-        widget.className = className;
+        var widget = dom('span', { 'class': className }, '\u00a0');
         vim.fakeCursorBookmark = cm.setBookmark(from, {widget: widget});
       } else {
         vim.fakeCursor = cm.markText(from, to, {className: className});
@@ -27249,7 +27304,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
   var mac_geMountainLion = /Mac OS X 1\d\D([8-9]|\d\d)\D/.test(userAgent);
   var phantom = /PhantomJS/.test(userAgent);
 
-  var ios = !edge && /AppleWebKit/.test(userAgent) && /Mobile\/\w+/.test(userAgent);
+  var ios = safari && (/Mobile\/\w+/.test(userAgent) || navigator.maxTouchPoints > 2);
   var android = /Android/.test(userAgent);
   // This is woefully incomplete. Suggestions for alternative methods welcome.
   var mobile = ios || android || /webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(userAgent);
@@ -29403,6 +29458,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     if (cm.options.lineNumbers || markers) {
       var wrap$1 = ensureLineWrapped(lineView);
       var gutterWrap = lineView.gutter = elt("div", null, "CodeMirror-gutter-wrapper", ("left: " + (cm.options.fixedGutter ? dims.fixedPos : -dims.gutterTotalWidth) + "px"));
+      gutterWrap.setAttribute("aria-hidden", "true");
       cm.display.input.setUneditable(gutterWrap);
       wrap$1.insertBefore(gutterWrap, lineView.text);
       if (lineView.line.gutterClass)
@@ -30502,19 +30558,22 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
   }
 
   function ensureFocus(cm) {
-    if (!cm.state.focused) { cm.display.input.focus(); onFocus(cm); }
+    if (!cm.hasFocus()) {
+      cm.display.input.focus();
+      if (!cm.state.focused) { onFocus(cm); }
+    }
   }
 
   function delayBlurEvent(cm) {
     cm.state.delayingBlurEvent = true;
     setTimeout(function () { if (cm.state.delayingBlurEvent) {
       cm.state.delayingBlurEvent = false;
-      onBlur(cm);
+      if (cm.state.focused) { onBlur(cm); }
     } }, 100);
   }
 
   function onFocus(cm, e) {
-    if (cm.state.delayingBlurEvent) { cm.state.delayingBlurEvent = false; }
+    if (cm.state.delayingBlurEvent && !cm.state.draggingText) { cm.state.delayingBlurEvent = false; }
 
     if (cm.options.readOnly == "nocursor") { return }
     if (!cm.state.focused) {
@@ -30696,14 +30755,15 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       if (newTop != screentop) { result.scrollTop = newTop; }
     }
 
-    var screenleft = cm.curOp && cm.curOp.scrollLeft != null ? cm.curOp.scrollLeft : display.scroller.scrollLeft;
-    var screenw = displayWidth(cm) - (cm.options.fixedGutter ? display.gutters.offsetWidth : 0);
+    var gutterSpace = cm.options.fixedGutter ? 0 : display.gutters.offsetWidth;
+    var screenleft = cm.curOp && cm.curOp.scrollLeft != null ? cm.curOp.scrollLeft : display.scroller.scrollLeft - gutterSpace;
+    var screenw = displayWidth(cm) - display.gutters.offsetWidth;
     var tooWide = rect.right - rect.left > screenw;
     if (tooWide) { rect.right = rect.left + screenw; }
     if (rect.left < 10)
       { result.scrollLeft = 0; }
     else if (rect.left < screenleft)
-      { result.scrollLeft = Math.max(0, rect.left - (tooWide ? 0 : 10)); }
+      { result.scrollLeft = Math.max(0, rect.left + gutterSpace - (tooWide ? 0 : 10)); }
     else if (rect.right > screenw + screenleft - 3)
       { result.scrollLeft = rect.right + (tooWide ? 0 : 10) - screenw; }
     return result
@@ -31448,6 +31508,8 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
   function updateGutterSpace(display) {
     var width = display.gutters.offsetWidth;
     display.sizer.style.marginLeft = width + "px";
+    // Send an event to consumers responding to changes in gutter width.
+    signalLater(display, "gutterChanged", display);
   }
 
   function setDocumentHeight(cm, measure) {
@@ -32011,19 +32073,19 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     });
   }
 
-  function History(startGen) {
+  function History(prev) {
     // Arrays of change events and selections. Doing something adds an
     // event to done and clears undo. Undoing moves events from done
     // to undone, redoing moves them in the other direction.
     this.done = []; this.undone = [];
-    this.undoDepth = Infinity;
+    this.undoDepth = prev ? prev.undoDepth : Infinity;
     // Used to track when changes can be merged into a single undo
     // event
     this.lastModTime = this.lastSelTime = 0;
     this.lastOp = this.lastSelOp = null;
     this.lastOrigin = this.lastSelOrigin = null;
     // Used by the isClean() method
-    this.generation = this.maxGeneration = startGen || 1;
+    this.generation = this.maxGeneration = prev ? prev.maxGeneration : 1;
   }
 
   // Create a history change event from an updateDoc-style change
@@ -32328,7 +32390,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       (cmp(sel.primary().head, doc.sel.primary().head) < 0 ? -1 : 1);
     setSelectionInner(doc, skipAtomicInSelection(doc, sel, bias, true));
 
-    if (!(options && options.scroll === false) && doc.cm)
+    if (!(options && options.scroll === false) && doc.cm && doc.cm.getOption("readOnly") != "nocursor")
       { ensureCursorVisible(doc.cm); }
   }
 
@@ -32985,7 +33047,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     changeLine(doc, handle, "widget", function (line) {
       var widgets = line.widgets || (line.widgets = []);
       if (widget.insertAt == null) { widgets.push(widget); }
-      else { widgets.splice(Math.min(widgets.length - 1, Math.max(0, widget.insertAt)), 0, widget); }
+      else { widgets.splice(Math.min(widgets.length, Math.max(0, widget.insertAt)), 0, widget); }
       widget.line = line;
       if (cm && !lineIsHidden(doc, line)) {
         var aboveVisible = heightAtLine(line) < doc.scrollTop;
@@ -33394,7 +33456,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       var out = [];
       for (var i = 0; i < ranges.length; i++)
         { out[i] = new Range(clipPos(this, ranges[i].anchor),
-                           clipPos(this, ranges[i].head)); }
+                           clipPos(this, ranges[i].head || ranges[i].anchor)); }
       if (primary == null) { primary = Math.min(ranges.length - 1, this.sel.primIndex); }
       setSelection(this, normalizeSelection(this.cm, out, primary), options);
     }),
@@ -33457,7 +33519,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     clearHistory: function() {
       var this$1 = this;
 
-      this.history = new History(this.history.maxGeneration);
+      this.history = new History(this.history);
       linkedDocs(this, function (doc) { return doc.history = this$1.history; }, true);
     },
 
@@ -33478,7 +33540,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
               undone: copyHistoryArray(this.history.undone)}
     },
     setHistory: function(histData) {
-      var hist = this.history = new History(this.history.maxGeneration);
+      var hist = this.history = new History(this.history);
       hist.done = copyHistoryArray(histData.done.slice(0), null, true);
       hist.undone = copyHistoryArray(histData.undone.slice(0), null, true);
     },
@@ -33897,10 +33959,9 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
   // Very basic readline/emacs-style bindings, which are standard on Mac.
   keyMap.emacsy = {
     "Ctrl-F": "goCharRight", "Ctrl-B": "goCharLeft", "Ctrl-P": "goLineUp", "Ctrl-N": "goLineDown",
-    "Alt-F": "goWordRight", "Alt-B": "goWordLeft", "Ctrl-A": "goLineStart", "Ctrl-E": "goLineEnd",
-    "Ctrl-V": "goPageDown", "Shift-Ctrl-V": "goPageUp", "Ctrl-D": "delCharAfter", "Ctrl-H": "delCharBefore",
-    "Alt-D": "delWordAfter", "Alt-Backspace": "delWordBefore", "Ctrl-K": "killLine", "Ctrl-T": "transposeChars",
-    "Ctrl-O": "openLine"
+    "Ctrl-A": "goLineStart", "Ctrl-E": "goLineEnd", "Ctrl-V": "goPageDown", "Shift-Ctrl-V": "goPageUp",
+    "Ctrl-D": "delCharAfter", "Ctrl-H": "delCharBefore", "Alt-Backspace": "delWordBefore", "Ctrl-K": "killLine",
+    "Ctrl-T": "transposeChars", "Ctrl-O": "openLine"
   };
   keyMap.macDefault = {
     "Cmd-A": "selectAll", "Cmd-D": "deleteLine", "Cmd-Z": "undo", "Shift-Cmd-Z": "redo", "Cmd-Y": "redo",
@@ -34594,6 +34655,10 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     var dragEnd = operation(cm, function (e) {
       if (webkit) { display.scroller.draggable = false; }
       cm.state.draggingText = false;
+      if (cm.state.delayingBlurEvent) {
+        if (cm.hasFocus()) { cm.state.delayingBlurEvent = false; }
+        else { delayBlurEvent(cm); }
+      }
       off(display.wrapper.ownerDocument, "mouseup", dragEnd);
       off(display.wrapper.ownerDocument, "mousemove", mouseMove);
       off(display.scroller, "dragstart", dragStart);
@@ -34617,15 +34682,15 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     if (webkit) { display.scroller.draggable = true; }
     cm.state.draggingText = dragEnd;
     dragEnd.copy = !behavior.moveOnDrag;
-    // IE's approach to draggable
-    if (display.scroller.dragDrop) { display.scroller.dragDrop(); }
     on(display.wrapper.ownerDocument, "mouseup", dragEnd);
     on(display.wrapper.ownerDocument, "mousemove", mouseMove);
     on(display.scroller, "dragstart", dragStart);
     on(display.scroller, "drop", dragEnd);
 
-    delayBlurEvent(cm);
+    cm.state.delayingBlurEvent = true;
     setTimeout(function () { return display.input.focus(); }, 20);
+    // IE's approach to draggable
+    if (display.scroller.dragDrop) { display.scroller.dragDrop(); }
   }
 
   function rangeForUnit(cm, pos, unit) {
@@ -34638,6 +34703,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
 
   // Normal selection, as opposed to text dragging.
   function leftButtonSelect(cm, event, start, behavior) {
+    if (ie) { delayBlurEvent(cm); }
     var display = cm.display, doc = cm.doc;
     e_preventDefault(event);
 
@@ -34916,7 +34982,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       for (var i = newBreaks.length - 1; i >= 0; i--)
         { replaceRange(cm.doc, val, newBreaks[i], Pos(newBreaks[i].line, newBreaks[i].ch + val.length)); }
     });
-    option("specialChars", /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b-\u200c\u200e\u200f\u2028\u2029\ufeff\ufff9-\ufffc]/g, function (cm, val, old) {
+    option("specialChars", /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b\u200e\u200f\u2028\u2029\ufeff\ufff9-\ufffc]/g, function (cm, val, old) {
       cm.state.specialChars = new RegExp(val.source + (val.test("\t") ? "" : "|\t"), "g");
       if (old != Init) { cm.refresh(); }
     });
@@ -35883,10 +35949,13 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
     function moveOnce(boundToLine) {
       var next;
       if (unit == "codepoint") {
-        var ch = lineObj.text.charCodeAt(pos.ch + (unit > 0 ? 0 : -1));
-        if (isNaN(ch)) { next = null; }
-        else { next = new Pos(pos.line, Math.max(0, Math.min(lineObj.text.length, pos.ch + dir * (ch >= 0xD800 && ch < 0xDC00 ? 2 : 1))),
-                            -dir); }
+        var ch = lineObj.text.charCodeAt(pos.ch + (dir > 0 ? 0 : -1));
+        if (isNaN(ch)) {
+          next = null;
+        } else {
+          var astral = dir > 0 ? ch >= 0xD800 && ch < 0xDC00 : ch >= 0xDC00 && ch < 0xDFFF;
+          next = new Pos(pos.line, Math.max(0, Math.min(lineObj.text.length, pos.ch + dir * (astral ? 2 : 1))), -dir);
+        }
       } else if (visually) {
         next = moveVisually(doc.cm, lineObj, pos, dir);
       } else {
@@ -35971,6 +36040,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
 
     var input = this, cm = input.cm;
     var div = input.div = display.lineDiv;
+    div.contentEditable = true;
     disableBrowserMagic(div, cm.options.spellcheck, cm.options.autocorrect, cm.options.autocapitalize);
 
     function belongsToInput(e) {
@@ -36037,7 +36107,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
       var kludge = hiddenTextarea(), te = kludge.firstChild;
       cm.display.lineSpace.insertBefore(kludge, cm.display.lineSpace.firstChild);
       te.value = lastCopied.text.join("\n");
-      var hadFocus = document.activeElement;
+      var hadFocus = activeElt();
       selectInput(te);
       setTimeout(function () {
         cm.display.lineSpace.removeChild(kludge);
@@ -36060,7 +36130,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
 
   ContentEditableInput.prototype.prepareSelection = function () {
     var result = prepareSelection(this.cm, false);
-    result.focus = document.activeElement == this.div;
+    result.focus = activeElt() == this.div;
     return result
   };
 
@@ -36156,7 +36226,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
 
   ContentEditableInput.prototype.focus = function () {
     if (this.cm.options.readOnly != "nocursor") {
-      if (!this.selectionInEditor() || document.activeElement != this.div)
+      if (!this.selectionInEditor() || activeElt() != this.div)
         { this.showSelection(this.prepareSelection(), true); }
       this.div.focus();
     }
@@ -36998,7 +37068,7 @@ CodeMirror.runMode = function(string, modespec, callback, options) {
 
   addLegacyProps(CodeMirror);
 
-  CodeMirror.version = "5.58.1";
+  CodeMirror.version = "5.61.0";
 
   return CodeMirror;
 
@@ -39497,7 +39567,7 @@ module.exports = merge;
 /**
  * @license
  * Lodash <https://lodash.com/>
- * Copyright OpenJS Foundation and other contributors <https://openjsf.org/>
+ * Copyright JS Foundation and other contributors <https://js.foundation/>
  * Released under MIT license <https://lodash.com/license>
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
  * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -39508,7 +39578,7 @@ module.exports = merge;
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.17.20';
+  var VERSION = '4.17.11';
 
   /** Used as the size to enable large array optimizations. */
   var LARGE_ARRAY_SIZE = 200;
@@ -42167,10 +42237,16 @@ module.exports = merge;
         value.forEach(function(subValue) {
           result.add(baseClone(subValue, bitmask, customizer, subValue, value, stack));
         });
-      } else if (isMap(value)) {
+
+        return result;
+      }
+
+      if (isMap(value)) {
         value.forEach(function(subValue, key) {
           result.set(key, baseClone(subValue, bitmask, customizer, key, value, stack));
         });
+
+        return result;
       }
 
       var keysFunc = isFull
@@ -43094,8 +43170,8 @@ module.exports = merge;
         return;
       }
       baseFor(source, function(srcValue, key) {
-        stack || (stack = new Stack);
         if (isObject(srcValue)) {
+          stack || (stack = new Stack);
           baseMergeDeep(object, source, key, srcIndex, baseMerge, customizer, stack);
         }
         else {
@@ -43215,21 +43291,8 @@ module.exports = merge;
      * @returns {Array} Returns the new sorted array.
      */
     function baseOrderBy(collection, iteratees, orders) {
-      if (iteratees.length) {
-        iteratees = arrayMap(iteratees, function(iteratee) {
-          if (isArray(iteratee)) {
-            return function(value) {
-              return baseGet(value, iteratee.length === 1 ? iteratee[0] : iteratee);
-            }
-          }
-          return iteratee;
-        });
-      } else {
-        iteratees = [identity];
-      }
-
       var index = -1;
-      iteratees = arrayMap(iteratees, baseUnary(getIteratee()));
+      iteratees = arrayMap(iteratees.length ? iteratees : [identity], baseUnary(getIteratee()));
 
       var result = baseMap(collection, function(value, key, collection) {
         var criteria = arrayMap(iteratees, function(iteratee) {
@@ -43486,10 +43549,6 @@ module.exports = merge;
         var key = toKey(path[index]),
             newValue = value;
 
-        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-          return object;
-        }
-
         if (index != lastIndex) {
           var objValue = nested[key];
           newValue = customizer ? customizer(objValue, key, nested) : undefined;
@@ -43642,14 +43701,11 @@ module.exports = merge;
      *  into `array`.
      */
     function baseSortedIndexBy(array, value, iteratee, retHighest) {
-      var low = 0,
-          high = array == null ? 0 : array.length;
-      if (high === 0) {
-        return 0;
-      }
-
       value = iteratee(value);
-      var valIsNaN = value !== value,
+
+      var low = 0,
+          high = array == null ? 0 : array.length,
+          valIsNaN = value !== value,
           valIsNull = value === null,
           valIsSymbol = isSymbol(value),
           valIsUndefined = value === undefined;
@@ -44932,7 +44988,7 @@ module.exports = merge;
       return function(number, precision) {
         number = toNumber(number);
         precision = precision == null ? 0 : nativeMin(toInteger(precision), 292);
-        if (precision && nativeIsFinite(number)) {
+        if (precision) {
           // Shift with exponential notation to avoid floating-point issues.
           // See [MDN](https://mdn.io/round#Examples) for more details.
           var pair = (toString(number) + 'e').split('e'),
@@ -45134,11 +45190,10 @@ module.exports = merge;
       if (arrLength != othLength && !(isPartial && othLength > arrLength)) {
         return false;
       }
-      // Check that cyclic values are equal.
-      var arrStacked = stack.get(array);
-      var othStacked = stack.get(other);
-      if (arrStacked && othStacked) {
-        return arrStacked == other && othStacked == array;
+      // Assume cyclic values are equal.
+      var stacked = stack.get(array);
+      if (stacked && stack.get(other)) {
+        return stacked == other;
       }
       var index = -1,
           result = true,
@@ -45300,11 +45355,10 @@ module.exports = merge;
           return false;
         }
       }
-      // Check that cyclic values are equal.
-      var objStacked = stack.get(object);
-      var othStacked = stack.get(other);
-      if (objStacked && othStacked) {
-        return objStacked == other && othStacked == object;
+      // Assume cyclic values are equal.
+      var stacked = stack.get(object);
+      if (stacked && stack.get(other)) {
+        return stacked == other;
       }
       var result = true;
       stack.set(object, other);
@@ -46117,7 +46171,7 @@ module.exports = merge;
     }
 
     /**
-     * Gets the value at `key`, unless `key` is "__proto__" or "constructor".
+     * Gets the value at `key`, unless `key` is "__proto__".
      *
      * @private
      * @param {Object} object The object to query.
@@ -46125,10 +46179,6 @@ module.exports = merge;
      * @returns {*} Returns the property value.
      */
     function safeGet(object, key) {
-      if (key === 'constructor' && typeof object[key] === 'function') {
-        return;
-      }
-
       if (key == '__proto__') {
         return;
       }
@@ -48685,10 +48735,6 @@ module.exports = merge;
      * // The `_.property` iteratee shorthand.
      * _.filter(users, 'active');
      * // => objects for ['barney']
-     *
-     * // Combining several predicates using `_.overEvery` or `_.overSome`.
-     * _.filter(users, _.overSome([{ 'age': 36 }, ['age', 40]]));
-     * // => objects for ['fred', 'barney']
      */
     function filter(collection, predicate) {
       var func = isArray(collection) ? arrayFilter : baseFilter;
@@ -49438,15 +49484,15 @@ module.exports = merge;
      * var users = [
      *   { 'user': 'fred',   'age': 48 },
      *   { 'user': 'barney', 'age': 36 },
-     *   { 'user': 'fred',   'age': 30 },
+     *   { 'user': 'fred',   'age': 40 },
      *   { 'user': 'barney', 'age': 34 }
      * ];
      *
      * _.sortBy(users, [function(o) { return o.user; }]);
-     * // => objects for [['barney', 36], ['barney', 34], ['fred', 48], ['fred', 30]]
+     * // => objects for [['barney', 36], ['barney', 34], ['fred', 48], ['fred', 40]]
      *
      * _.sortBy(users, ['user', 'age']);
-     * // => objects for [['barney', 34], ['barney', 36], ['fred', 30], ['fred', 48]]
+     * // => objects for [['barney', 34], ['barney', 36], ['fred', 40], ['fred', 48]]
      */
     var sortBy = baseRest(function(collection, iteratees) {
       if (collection == null) {
@@ -49933,7 +49979,6 @@ module.exports = merge;
           }
           if (maxing) {
             // Handle invocations in a tight loop.
-            clearTimeout(timerId);
             timerId = setTimeout(timerExpired, wait);
             return invokeFunc(lastCallTime);
           }
@@ -54320,12 +54365,9 @@ module.exports = merge;
       , 'g');
 
       // Use a sourceURL for easier debugging.
-      // The sourceURL gets injected into the source that's eval-ed, so be careful
-      // to normalize all kinds of whitespace, so e.g. newlines (and unicode versions of it) can't sneak in
-      // and escape the comment, thus injecting code that gets evaled.
       var sourceURL = '//# sourceURL=' +
-        (hasOwnProperty.call(options, 'sourceURL')
-          ? (options.sourceURL + '').replace(/\s/g, ' ')
+        ('sourceURL' in options
+          ? options.sourceURL
           : ('lodash.templateSources[' + (++templateCounter) + ']')
         ) + '\n';
 
@@ -54358,7 +54400,7 @@ module.exports = merge;
 
       // If `variable` is not specified wrap a with-statement around the generated
       // code to add the data object to the top of the scope chain.
-      var variable = hasOwnProperty.call(options, 'variable') && options.variable;
+      var variable = options.variable;
       if (!variable) {
         source = 'with (obj) {\n' + source + '\n}\n';
       }
@@ -55064,9 +55106,6 @@ module.exports = merge;
      * values against any array or object value, respectively. See `_.isEqual`
      * for a list of supported value comparisons.
      *
-     * **Note:** Multiple values can be checked by combining several matchers
-     * using `_.overSome`
-     *
      * @static
      * @memberOf _
      * @since 3.0.0
@@ -55082,10 +55121,6 @@ module.exports = merge;
      *
      * _.filter(objects, _.matches({ 'a': 4, 'c': 6 }));
      * // => [{ 'a': 4, 'b': 5, 'c': 6 }]
-     *
-     * // Checking for several possible values
-     * _.filter(objects, _.overSome([_.matches({ 'a': 1 }), _.matches({ 'a': 4 })]));
-     * // => [{ 'a': 1, 'b': 2, 'c': 3 }, { 'a': 4, 'b': 5, 'c': 6 }]
      */
     function matches(source) {
       return baseMatches(baseClone(source, CLONE_DEEP_FLAG));
@@ -55099,9 +55134,6 @@ module.exports = merge;
      * **Note:** Partial comparisons will match empty array and empty object
      * `srcValue` values against any array or object value, respectively. See
      * `_.isEqual` for a list of supported value comparisons.
-     *
-     * **Note:** Multiple values can be checked by combining several matchers
-     * using `_.overSome`
      *
      * @static
      * @memberOf _
@@ -55119,10 +55151,6 @@ module.exports = merge;
      *
      * _.find(objects, _.matchesProperty('a', 4));
      * // => { 'a': 4, 'b': 5, 'c': 6 }
-     *
-     * // Checking for several possible values
-     * _.filter(objects, _.overSome([_.matchesProperty('a', 1), _.matchesProperty('a', 4)]));
-     * // => [{ 'a': 1, 'b': 2, 'c': 3 }, { 'a': 4, 'b': 5, 'c': 6 }]
      */
     function matchesProperty(path, srcValue) {
       return baseMatchesProperty(path, baseClone(srcValue, CLONE_DEEP_FLAG));
@@ -55346,10 +55374,6 @@ module.exports = merge;
      * Creates a function that checks if **all** of the `predicates` return
      * truthy when invoked with the arguments it receives.
      *
-     * Following shorthands are possible for providing predicates.
-     * Pass an `Object` and it will be used as an parameter for `_.matches` to create the predicate.
-     * Pass an `Array` of parameters for `_.matchesProperty` and the predicate will be created using them.
-     *
      * @static
      * @memberOf _
      * @since 4.0.0
@@ -55376,10 +55400,6 @@ module.exports = merge;
      * Creates a function that checks if **any** of the `predicates` return
      * truthy when invoked with the arguments it receives.
      *
-     * Following shorthands are possible for providing predicates.
-     * Pass an `Object` and it will be used as an parameter for `_.matches` to create the predicate.
-     * Pass an `Array` of parameters for `_.matchesProperty` and the predicate will be created using them.
-     *
      * @static
      * @memberOf _
      * @since 4.0.0
@@ -55399,9 +55419,6 @@ module.exports = merge;
      *
      * func(NaN);
      * // => false
-     *
-     * var matchesFunc = _.overSome([{ 'a': 1 }, { 'a': 2 }])
-     * var matchesPropertyFunc = _.overSome([['a', 1], ['a', 2]])
      */
     var overSome = createOver(arraySome);
 
@@ -56588,11 +56605,10 @@ module.exports = merge;
     baseForOwn(LazyWrapper.prototype, function(func, methodName) {
       var lodashFunc = lodash[methodName];
       if (lodashFunc) {
-        var key = lodashFunc.name + '';
-        if (!hasOwnProperty.call(realNames, key)) {
-          realNames[key] = [];
-        }
-        realNames[key].push({ 'name': methodName, 'func': lodashFunc });
+        var key = (lodashFunc.name + ''),
+            names = realNames[key] || (realNames[key] = []);
+
+        names.push({ 'name': methodName, 'func': lodashFunc });
       }
     });
 
@@ -58068,7 +58084,14 @@ function innerSubscribe(result, innerSubscriber) {
     if (result instanceof Observable_1.Observable) {
         return result.subscribe(innerSubscriber);
     }
-    return subscribeTo_1.subscribeTo(result)(innerSubscriber);
+    var subscription;
+    try {
+        subscription = subscribeTo_1.subscribeTo(result)(innerSubscriber);
+    }
+    catch (error) {
+        innerSubscriber.error(error);
+    }
+    return subscription;
 }
 exports.innerSubscribe = innerSubscribe;
 
@@ -63821,7 +63844,7 @@ function shareReplay(configOrBufferSize, windowTime, scheduler) {
             bufferSize: configOrBufferSize,
             windowTime: windowTime,
             refCount: false,
-            scheduler: scheduler
+            scheduler: scheduler,
         };
     }
     return function (source) { return source.lift(shareReplayOperator(config)); };
@@ -63842,7 +63865,9 @@ function shareReplayOperator(_a) {
             subject = new ReplaySubject_1.ReplaySubject(bufferSize, windowTime, scheduler);
             innerSub = subject.subscribe(this);
             subscription = source.subscribe({
-                next: function (value) { subject.next(value); },
+                next: function (value) {
+                    subject.next(value);
+                },
                 error: function (err) {
                     hasError = true;
                     subject.error(err);
@@ -63853,6 +63878,9 @@ function shareReplayOperator(_a) {
                     subject.complete();
                 },
             });
+            if (isComplete) {
+                subscription = undefined;
+            }
         }
         else {
             innerSub = subject.subscribe(this);
@@ -63860,6 +63888,7 @@ function shareReplayOperator(_a) {
         this.add(function () {
             refCount--;
             innerSub.unsubscribe();
+            innerSub = undefined;
             if (subscription && !isComplete && useRefCount && refCount === 0) {
                 subscription.unsubscribe();
                 subscription = undefined;
@@ -67324,16 +67353,11 @@ var BasicTextBuffer = /** @class */ (function () {
         var startCol = start.column;
         var prefixChars = [];
         for (var i = start.line; i <= end.line; i++) {
-            if (i > start.line) {
-                if (this.isLineEmpty(line)) {
-                    this.removeLine(line);
-                }
-            }
             var colEnd = (i === end.line) ? end.column : this.getColumnCount(line);
             for (var col = startCol; col < colEnd; col++) {
                 this.removeColumn(startCol, line);
             }
-            if (!this.isLineEmpty(line)) {
+            if (!this.isLineEmpty(line) || i === end.line) {
                 if (i !== end.line) {
                     prefixChars = this.table[line];
                     this.removeLine(line);
@@ -67342,6 +67366,9 @@ var BasicTextBuffer = /** @class */ (function () {
                 else {
                     this.table[line] = prefixChars.concat(this.table[line]);
                 }
+            }
+            else {
+                this.removeLine(line);
             }
         }
         return { line: line, column: (prefixChars.length > 0) ? prefixChars.length : startCol };
@@ -67354,7 +67381,8 @@ var BasicTextBuffer = /** @class */ (function () {
         for (var line = start.line; line <= end.line; line++) {
             var colEnd = (line === end.line) ? end.column : this.getColumnCount(line);
             var chars = [];
-            for (var col = start.column; col < colEnd; col++) {
+            var colStart = (line === start.line) ? start.column : 0;
+            for (var col = colStart; col < colEnd; col++) {
                 var ch = this.charAt(col, line);
                 if (ch !== undefined) {
                     chars.push(ch);

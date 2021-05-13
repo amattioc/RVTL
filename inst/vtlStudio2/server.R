@@ -1,6 +1,5 @@
-#####################################################################################
 #
-# Copyright 2020, Bank Of Italy
+# Copyright © 2020 Banca D'Italia
 #
 # Licensed under the EUPL, Version 1.2 (the "License");
 # You may not use this work except in compliance with the
@@ -18,7 +17,6 @@
 # See the License for the specific language governing
 # permissions and limitations under the License.
 #
-###############################################################################
 
 library(RVTL)
 
@@ -27,11 +25,23 @@ vtlProperties <- J("it.bancaditalia.oss.vtl.config.VTLGeneralProperties")
 
 environments <- list(
   `CSV environment` = "it.bancaditalia.oss.vtl.impl.environment.CSVFileEnvironment",
+  `CSV Path environment` = "it.bancaditalia.oss.vtl.impl.environment.CSVPathEnvironment",
   `SDMX environment` = "it.bancaditalia.oss.vtl.impl.environment.SDMXEnvironment",
   `R Environment` = "it.bancaditalia.oss.vtl.impl.environment.REnvironment",
   `In-Memory environment` = "it.bancaditalia.oss.vtl.impl.environment.WorkspaceImpl"
 )
 
+currentEnvironments <- function() {
+  sapply(J("it.bancaditalia.oss.vtl.config.VTLGeneralProperties")$ENVIRONMENT_IMPLEMENTATION$getValues(), .jstrVal)
+}
+
+activeEnvs <- function(active) {
+  items <- names(environments[xor(!active, environments %in% currentEnvironments())])
+  if (length(items) > 0)
+    items
+  else
+    NULL
+}
 shinyServer(function(input, output, session) {
   
   ######
@@ -63,7 +73,8 @@ shinyServer(function(input, output, session) {
         paste0(isolate(input$sessionID), ".vtl")
       }, content = function (file) {
         writeLines(currentSession()$text, file)
-      })
+      }
+  )
 
   # Repository Properties box
   output$repoProperties <- renderUI({
@@ -76,13 +87,68 @@ shinyServer(function(input, output, session) {
       })
     )
   })
-
+  
+  # Sortable environments
+  output$sortableEnvs <- renderUI({
+    sortable::bucket_list(header = NULL, 
+    sortable::add_rank_list(text = tags$label("Available"), labels = activeEnvs(F)),
+    sortable::add_rank_list(input_id = "envs", text = tags$label("Active"), labels = activeEnvs(T)),
+    orientation = 'horizontal')
+  })
+  
+  # Environment list
+  output$envList <- renderUI({
+    selectInput(inputId = 'selectEnv', label = 'Select Environment', multiple = F, 
+                choices = unlist(environments))
+  })
+  
+  # Property list
+  output$propertyList <- renderUI({
+    req(input$selectEnv)
+    supportedProperties <- as.list(configManager$getSupportedProperties(J(input$selectEnv)@jobj))
+    if(length(supportedProperties) > 0){
+      props = sapply(supportedProperties, function (x) x$getName())
+      names(props) = sapply(supportedProperties, function (x) x$getDescription())
+      selectInput(inputId = 'selectProp', label = 'Select Property', multiple = F, 
+                  choices = props)
+    }
+    else{
+      selectInput(inputId = 'selectProp', label = 'Select Property', multiple = F, 
+                  choices = list())
+    }
+  })
+  
+  # Property value
+  output$propertyValueInput <- renderUI({
+    req(input$selectProp)
+    selectedEnv = J(input$selectEnv)@jobj
+    prop = configManager$findSupportedProperty(selectedEnv, input$selectProp)
+    if(prop$isPresent()){
+      prop = prop$get()
+      textInput(inputId = 'propertyValue', label = 'Value:', value = req(prop$getValue()))
+    }
+  })
+  
   # Select dataset to browse
   output$dsNames<- renderUI({
     selectInput(inputId = 'selectDatasets', label = 'Select Node', multiple = F, 
                 choices = c('', currentSession()$getNodes()), selected ='')
   })
 
+  # output dataset lineage 
+  output$lineage <- networkD3::renderSankeyNetwork({
+    req(input$sessionID)
+    req(input$selectDatasets)
+    edges <- currentSession()$getLineage(input$selectDatasets)
+    vertices <- data.frame(name = unique(c(as.character(edges[,'source']), as.character(edges[,'target']))), stringsAsFactors = F)
+    edges[, 'source'] <- match(edges[, 'source'], vertices[, 'name']) - 1
+    edges[, 'target'] <- match(edges[, 'target'], vertices[, 'name']) - 1
+    graph <- networkD3::sankeyNetwork(Links = edges, Nodes = vertices, Source = 'source', 
+                                      Target = 'target', Value = 'value', NodeID = 'name', 
+                                      nodeWidth = 40, nodePadding = 20, fontSize = 10)
+    return(graph)
+  })
+  
   # output VTL result  
   output$datasets <- DT::renderDataTable({
     req(input$sessionID)
@@ -162,6 +228,12 @@ shinyServer(function(input, output, session) {
     shinyjs::toggleState("setRepo", canChange)
   })
   
+  # Disable changing environment props if fields are no ready
+  observe({
+    canChange <- isTruthy(input$selectEnv) & isTruthy(input$selectProp) & isTruthy(input$propertyValue)
+    shinyjs::toggleState("setProperty", canChange)
+  })
+  
   # Disable navigator and graph if the session was not compiled
   observe({
     shinyjs::toggleCssClass(selector = ".nav-tabs li:nth-child(2)", class = "tab-disabled", condition = !isCompiled())
@@ -208,6 +280,43 @@ shinyServer(function(input, output, session) {
     isCompiled(vtlSession$isCompiled())
     #update current session
     updateSelectInput(session = session, inputId = 'sessionID', choices = VTLSessionManager$list(), selected = input$scriptFile$name)
+  })
+  
+  # load CSV file to GlobalEnv
+  observeEvent(input$datafile, {
+    datasetName = basename(input$datafile$name)
+    data = readLines(con = input$datafile$datapath)
+    if(length(data > 1)){
+      header = as.character(read.csv(text = data[1], header = F))
+      ids1 = which(startsWith(header, prefix = '$'))
+      ids2 = which(!startsWith(header, prefix = '#') & !grepl(x = header, pattern = '=', fixed = T))
+      ids = c(ids1, ids2)
+      measures = which(!startsWith(header, prefix = '#') & !startsWith(header, prefix = '$') & grepl(x = header, pattern = '=', fixed = T))
+      names = sub(x=
+                    sub(x = 
+                          sub(x = header, pattern = '\\#', replacement = '')
+                    , pattern = '\\$', replacement = '')
+              , pattern = '\\=.*', replacement = '')
+      body = read.csv(text = data[-1], header = F, stringsAsFactors = F)
+      body = setNames(object = body, nm = names)
+      
+      #type handling very raw for now, to be refined
+      # force strings (some cols could be cast to numeric by R)
+      stringTypes = which(grepl(x = header, pattern = 'String', fixed = T))
+      body[, stringTypes] = as.character(body[, stringTypes])
+      
+      attr(x = body, which = 'identifiers') = names[ids]
+      attr(x = body, which = 'measures') = names[measures]
+      assign(x = datasetName, value = body, envir = .GlobalEnv)
+      output$vtl_output <- renderPrint({
+        print(paste('File ', input$datafile$name, 'correctly loaded into R Environment. Dataset name to be used:', datasetName))
+      })
+    }
+    else{
+      output$vtl_output <- renderPrint({
+        print(paste('Error: file ', input$datafile$name, 'is malformed.'))
+      })
+    }
   })
   
   # create new session
@@ -290,6 +399,7 @@ shinyServer(function(input, output, session) {
     req(input$proxyHost)
     req(input$proxyPort)
     output$conf_output <- renderPrint({
+      print(paste('Setting proxy', input$proxyHost, ':', input$proxyPort))
       J('it.bancaditalia.oss.sdmx.util.Configuration')$setDefaultProxy(input$proxyHost, input$proxyPort, input$proxyUser, input$proxyPassword)
       J("java.lang.System")$setProperty("http.proxyHost", input$proxyHost)
       J("java.lang.System")$setProperty("https.proxyHost", input$proxyHost)
@@ -308,6 +418,20 @@ shinyServer(function(input, output, session) {
         property$setValue(input[[property$getName()]])
     })
     vtlProperties$METADATA_REPOSITORY$setValue(req(input$repoClass))
+  })
+  
+  # configure environment property
+  observeEvent(input$setProperty, {
+    output$env_conf_output <- renderPrint({
+      print(paste('Setting property', input$selectProp))
+      selectedEnv = J(input$selectEnv)@jobj
+      prop = configManager$findSupportedProperty(selectedEnv, req(input$selectProp))
+      if(prop$isPresent()){
+        prop = prop$get()
+        prop$setValue(input$propertyValue)
+        print('OK.')
+      }
+    })
   })
   
   observeEvent(input$editorText, {

@@ -31,6 +31,7 @@ R6 Class for interacting with a VTL session instance.
 \item \href{#method-getStatements}{\code{VTLSession$getStatements()}}
 \item \href{#method-getNodes}{\code{VTLSession$getNodes()}}
 \item \href{#method-getValues}{\code{VTLSession$getValues()}}
+\item \href{#method-getLineage}{\code{VTLSession$getLineage()}}
 \item \href{#method-getTopology}{\code{VTLSession$getTopology()}}
 \item \href{#method-clone}{\code{VTLSession$clone()}}
 }
@@ -173,6 +174,23 @@ Returns a list of data frames containing the values of the named nodes defined i
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{nodes}}{a list of names of nodes to compute from this session}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-getLineage"></a>}}
+\if{latex}{\out{\hypertarget{method-getLineage}{}}}
+\subsection{Method \code{getLineage()}}{
+Returns a lineage for the value of the named node defined in this session.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{VTLSession$getLineage(alias)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{alias}}{a name of a node to compute from this session}
 }
 \if{html}{\out{</div>}}
 }

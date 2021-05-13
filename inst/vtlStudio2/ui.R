@@ -1,22 +1,21 @@
-# Copyright 2019,2019 Bank Of Italy
 #
-# Licensed under the EUPL, Version 1.1 or - as soon they
-# will be approved by the European Commission - subsequent
-# versions of the EUPL (the "Licence");
+# Copyright © 2020 Banca D'Italia
+#
+# Licensed under the EUPL, Version 1.2 (the "License");
 # You may not use this work except in compliance with the
-# Licence.
-# You may obtain a copy of the Licence at:
+# License.
+# You may obtain a copy of the License at:
 #
-#
-# http://ec.europa.eu/idabc/eupl
+# https://joinup.ec.europa.eu/sites/default/files/custom-page/attachment/2020-03/EUPL-1.2%20EN.txt
 #
 # Unless required by applicable law or agreed to in
-# writing, software distributed under the Licence is
+# writing, software distributed under the License is
 # distributed on an "AS IS" basis,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
 # express or implied.
-# See the Licence for the specific language governing
-# permissions and limitations under the Licence.
+#
+# See the License for the specific language governing
+# permissions and limitations under the License.
 #
 
 # Main class for consuming SDMX web services
@@ -118,25 +117,6 @@ repositoryImplementations <- list(`In-Memory repository` = 'it.bancaditalia.oss.
                                   `CSV file repository` = 'it.bancaditalia.oss.vtl.impl.domains.CSVMetadataRepository',
                                   `SDMX Registry repository` = 'it.bancaditalia.oss.vtl.impl.domains.SDMXMetadataRepository')
 
-environments <- list(
-  `CSV environment` = "it.bancaditalia.oss.vtl.impl.environment.CSVFileEnvironment",
-  `SDMX environment` = "it.bancaditalia.oss.vtl.impl.environment.SDMXEnvironment",
-  `R Environment` = "it.bancaditalia.oss.vtl.impl.environment.REnvironment",
-  `In-Memory environment` = "it.bancaditalia.oss.vtl.impl.environment.WorkspaceImpl"
-)
-
-currentEnvironments <- function() {
-  sapply(J("it.bancaditalia.oss.vtl.config.VTLGeneralProperties")$ENVIRONMENT_IMPLEMENTATION$getValues(), .jstrVal)
-}
-
-activeEnvs <- function(active) {
-  items <- names(environments[xor(!active, environments %in% currentEnvironments())])
-  if (length(items) > 0)
-    items
-  else
-    NULL
-}
-
 ui <- shinydashboard::dashboardPage(
   
   shinydashboard::dashboardHeader(disable = T),
@@ -147,6 +127,7 @@ ui <- shinydashboard::dashboardPage(
           div(style="display:inline-block",titlePanel("VTL Studio!"))
        ),
        hr(),
+       fileInput(inputId = 'datafile', label = 'Load CSV', accept = 'csv'),
        selectInput(inputId = 'sessionID', label = labels$sessionID, multiple = F, choices = VTLSessionManager$list(), selected = VTLSessionManager$list()[1]),
        actionButton(inputId = 'compile', label = labels$compile, 
                     onClick='Shiny.setInputValue("vtlStatements", vtl.editor.editorImplementation.getValue());'),
@@ -222,8 +203,13 @@ ui <- shinydashboard::dashboardPage(
                           ),
                           checkboxInput(inputId = 'showAttrs', label = "Show Attributes", value = T),
                           hr(),
-                          uiOutput(outputId = "datasetsInfo"),
-                          DT::dataTableOutput(outputId = "datasets")
+                          tabsetPanel(id = "dataview", type = "tabs",
+                            tabPanel("Data points", 
+                                     uiOutput(outputId = "datasetsInfo"),
+                                     DT::dataTableOutput(outputId = "datasets")
+                            ),
+                            tabPanel("Lineage", networkD3::sankeyNetworkOutput("lineage", height = "100%"))
+                          ),
                  ),
                  tabPanel("Graph Explorer",
                           sliderInput(inputId = 'distance', label = "Nodes distance", min=50, max=500, step=10, value=100),
@@ -240,12 +226,6 @@ ui <- shinydashboard::dashboardPage(
                             uiOutput(outputId = "repoProperties"),
                             actionButton(inputId = 'setRepo', label = 'Change repository')
                           ),
-                          shinydashboard::box(title = 'VTL Environments', status = 'primary', solidHeader = T, collapsible = T,
-                            sortable::bucket_list(header = NULL, 
-                              sortable::add_rank_list(text = tags$label("Available"), labels = activeEnvs(F)),
-                              sortable::add_rank_list(input_id = "envs", text = tags$label("Active"), labels = activeEnvs(T)),
-                              orientation = 'horizontal')
-                          ),
                           shinydashboard::box(title = 'Network Proxy', status = 'primary', solidHeader = T, collapsible = T,
                                               textInput(inputId = 'proxyHost', label = 'Host:', value = defaultProxy$host),
                                               textInput(inputId = 'proxyPort', label = 'Port:', value = defaultProxy$port),
@@ -255,6 +235,20 @@ ui <- shinydashboard::dashboardPage(
                           ),
                           shinydashboard::box(title = 'Status', status = 'primary', solidHeader = T, width = 12,
                             verbatimTextOutput(outputId = "conf_output", placeholder = T)
+                          )
+                 ),
+                 tabPanel("Environment Settings",
+                          shinydashboard::box(title = 'VTL Environments', status = 'primary', solidHeader = T, collapsible = T,
+                                              uiOutput(outputId = "sortableEnvs")
+                          ),
+                          shinydashboard::box(title = 'Environment Properties', status = 'primary', solidHeader = T, collapsible = T,
+                                              uiOutput(outputId = "envList"),
+                                              uiOutput(outputId = "propertyList"),
+                                              uiOutput(outputId = "propertyValueInput"),
+                                              actionButton(inputId = 'setProperty', label = 'Change property')
+                          ),
+                          shinydashboard::box(title = 'Status', status = 'primary', solidHeader = T, width = 12,
+                                              verbatimTextOutput(outputId = "env_conf_output", placeholder = T)
                           )
                  )
                )                 

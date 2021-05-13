@@ -1,6 +1,5 @@
-#####################################################################################
 #
-# Copyright 2020, Bank Of Italy
+# Copyright © 2020 Banca D'Italia
 #
 # Licensed under the EUPL, Version 1.2 (the "License");
 # You may not use this work except in compliance with the
@@ -18,7 +17,6 @@
 # See the License for the specific language governing
 # permissions and limitations under the License.
 #
-###############################################################################
 
 #' Manage VTL sessions
 #' 
@@ -122,7 +120,23 @@ VTLSession <- R6Class("VTLSession",
                         pager <- .jnew("it.bancaditalia.oss.vtl.util.Paginator", 
                                        .jcast(jnode, "it.bancaditalia.oss.vtl.model.data.DataSet"))
                         df <- convertToDF(tryCatch({ pager$more(-1L) }, finally = { pager$close() }))
-                        role <- J("it.bancaditalia.oss.vtl.model.data.Component")
+                        role <- J("it.bancaditalia.oss.vtl.model.data.ComponentRole")
+                        # handle the explicit conversions for data types that are not well supported by jri
+                        if(pager$isToBeCast()){
+                          casting = pager$getToBeCast()
+                          if(!is.null(casting)){
+                            casting = jdx::convertToR(casting)
+                            for(x in names(casting)){
+                              toType = casting[[x]]
+                              if(toType == 'boolean'){
+                                df[, x] = as.logical(df[, x])
+                              }
+                              else  if(toType == 'date'){
+                                df[, x] = as.Date(df[, x])
+                              }
+                            }
+                          }
+                        }
                         attr(df, 'measures') <- sapply(jnode$getComponents(attr(role$Measure, 'jobj')), function(x) { x$getName() })
                         attr(df, 'identifiers') <- sapply(jnode$getComponents(attr(role$Identifier, 'jobj')), function(x) { x$getName() })
                       }
@@ -135,6 +149,22 @@ VTLSession <- R6Class("VTLSession",
                     return(nodesdf)
                   },
       
+      #' @description
+      #' Returns a lineage for the value of the named node defined in this session.
+      #' @param alias
+      #' a name of a node to compute from this session
+      getLineage = function (alias) {
+                    instance <- private$checkInstance()
+                    jds <- instance$resolve(alias)
+                    viewer <- new(J("it.bancaditalia.oss.vtl.util.LineageViewer"), jds)
+                    matrix <- viewer$generateAdiacenceMatrix(instance)
+                    df <- data.frame(source = matrix$getFirst(),
+                                     target = matrix$getSecond(), 
+                                     value = sapply(matrix$getThird(), function (x) { x$longValue() }),
+                                     stringsAsFactors = F)
+                    return(df)
+                  },
+
       #' @description
       #' Creates a fore network representation of all nodes defined in this VTL session.
       #' @param distance
