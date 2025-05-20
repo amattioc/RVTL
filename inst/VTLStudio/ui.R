@@ -18,6 +18,9 @@
 # permissions and limitations under the License.
 #
 
+library(RVTL)
+library(bslib)
+
 labels <- list(
   sessionID = 'Active VTL session:',
   compile = HTML('<span style="margin-right: 1em">Compile</span><span style="font-family: monospace">(Ctrl+Enter)</span>'), 

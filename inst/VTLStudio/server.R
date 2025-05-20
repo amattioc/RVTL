@@ -18,6 +18,9 @@
 # permissions and limitations under the License.
 #
 
+library(RVTL)
+library(bslib)
+
 repoImpls <- c(
   `In-Memory repository` = 'it.bancaditalia.oss.vtl.impl.meta.InMemoryMetadataRepository',
   `Json URL repository` = 'it.bancaditalia.oss.vtl.impl.meta.json.JsonMetadataRepository',
