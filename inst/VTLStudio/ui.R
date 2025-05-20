@@ -61,7 +61,7 @@ vtlUI <- page_sidebar(
       ),
       hr(),
       fileInput(inputId = 'datafile', label = 'Load CSV', accept = 'csv'),
-      input_switch(id = 'demomode', label = 'Demo mode'),
+      input_switch(id = 'demomode', label = 'Demo mode', value = T),
       selectInput(inputId = 'sessionID', label = labels$sessionID, multiple = F, choices = c()),
       actionButton(inputId = 'compile', label = labels$compile, 
         onClick='Shiny.setInputValue("vtlStatements", VTLEditor.view.state.doc.toString());'),
