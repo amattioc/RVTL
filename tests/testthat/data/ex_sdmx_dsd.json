@@ -1,8 +1,0 @@
-{
-  "datasets": [
-    {
-      "name": "ds_r",
-      "structure": "'BIS:BIS_EER(1.0)'"
-    }
-  ]
-}
