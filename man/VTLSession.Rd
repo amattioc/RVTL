@@ -22,7 +22,6 @@ R6 Class for interacting with a VTL session instance.
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-VTLSession-new}{\code{VTLSession$new()}}
-\item \href{#method-VTLSession-finalize}{\code{VTLSession$finalize()}}
 \item \href{#method-VTLSession-isCompiled}{\code{VTLSession$isCompiled()}}
 \item \href{#method-VTLSession-print}{\code{VTLSession$print()}}
 \item \href{#method-VTLSession-setText}{\code{VTLSession$setText()}}
@@ -44,31 +43,19 @@ R6 Class for interacting with a VTL session instance.
 \subsection{Method \code{new()}}{
 Creates a new VTL session with a given name.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{VTLSession$new(name = character(0))}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{VTLSession$new(name = character(0), category = character(0))}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{name}}{the name of the session
+\item{\code{name}}{the name of the session}
+
+\item{\code{category}}{the category of the example, usually not set
 The name to identify this session}
 }
 \if{html}{\out{</div>}}
 }
-\subsection{Details}{
-This method should not be called by the application.
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-VTLSession-finalize"></a>}}
-\if{latex}{\out{\hypertarget{method-VTLSession-finalize}{}}}
-\subsection{Method \code{finalize()}}{
-Terminates this VTL session.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{VTLSession$finalize()}\if{html}{\out{</div>}}
-}
-
 \subsection{Details}{
 This method should not be called by the application.
 }
@@ -176,18 +163,28 @@ Obtains a named list of all rules and values submitted for this session.
 \if{html}{\out{<a id="method-VTLSession-getValues"></a>}}
 \if{latex}{\out{\hypertarget{method-VTLSession-getValues}{}}}
 \subsection{Method \code{getValues()}}{
-Returns a list of data frames containing the values of the named nodes defined in this session.
+Evaluates the given VTL nodes as data.frames.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{VTLSession$getValues(nodes)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{VTLSession$getValues(nodes, max.rows = -1L)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{nodes}}{a list of names of nodes to compute from this session}
+
+\item{\code{max.rows}}{The maximum number of rows to retrieve from each node}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Details}{
+Returns a list of vertors or data frames containing the values of the 
+named nodes defined in this session. Each node is retrieved up to 
+max.rows number of observations, or all observations are retrieved if
+max.rows is not a positive long integer. In the latter case, the dataset
+value is also cached.
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VTLSession-getLineage"></a>}}
@@ -229,6 +226,7 @@ Creates a fore network representation of all nodes defined in this VTL session.
 \if{html}{\out{<a id="method-VTLSession-getEnvs"></a>}}
 \if{latex}{\out{\hypertarget{method-VTLSession-getEnvs}{}}}
 \subsection{Method \code{getEnvs()}}{
+Returns the environments used by this VTLSession
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VTLSession$getEnvs()}\if{html}{\out{</div>}}
 }

@@ -5,7 +5,7 @@
 \alias{VTLSessionManager}
 \title{Manage VTL sessions}
 \format{
-An object of class \code{VTLSessionManager} (inherits from \code{R6}) of length 9.
+An object of class \code{VTLSessionManager} (inherits from \code{R6}) of length 10.
 }
 \usage{
 VTLSessionManager

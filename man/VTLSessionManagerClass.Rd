@@ -13,12 +13,13 @@ This R6 class is used to create, find and destroy VTL sessions
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-VTLSessionManager-new}{\code{VTLSessionManagerClass$new()}}
-\item \href{#method-VTLSessionManager-finalize}{\code{VTLSessionManagerClass$finalize()}}
 \item \href{#method-VTLSessionManager-list}{\code{VTLSessionManagerClass$list()}}
 \item \href{#method-VTLSessionManager-clear}{\code{VTLSessionManagerClass$clear()}}
 \item \href{#method-VTLSessionManager-kill}{\code{VTLSessionManagerClass$kill()}}
+\item \href{#method-VTLSessionManager-initExampleSessions}{\code{VTLSessionManagerClass$initExampleSessions()}}
 \item \href{#method-VTLSessionManager-getOrCreate}{\code{VTLSessionManagerClass$getOrCreate()}}
 \item \href{#method-VTLSessionManager-reload}{\code{VTLSessionManagerClass$reload()}}
+\item \href{#method-VTLSessionManager-load_config}{\code{VTLSessionManagerClass$load_config()}}
 \item \href{#method-VTLSessionManager-clone}{\code{VTLSessionManagerClass$clone()}}
 }
 }
@@ -37,28 +38,16 @@ This method should not be called by the application.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-VTLSessionManager-finalize"></a>}}
-\if{latex}{\out{\hypertarget{method-VTLSessionManager-finalize}{}}}
-\subsection{Method \code{finalize()}}{
-Finalization
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{VTLSessionManagerClass$finalize()}\if{html}{\out{</div>}}
-}
-
-\subsection{Details}{
-Clears any managed VTL session when this manager is discarded by the garbage collector.
-This method should not be called by the application.
-}
-
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VTLSessionManager-list"></a>}}
 \if{latex}{\out{\hypertarget{method-VTLSessionManager-list}{}}}
 \subsection{Method \code{list()}}{
 List all active named VTL sessions.
-If an active SDMX metadata repository is active, also load Transformation schemes from it
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VTLSessionManagerClass$list()}\if{html}{\out{</div>}}
+}
+
+\subsection{Details}{
+If an active SDMX metadata repository is active, also load Transformation schemes from it
 }
 
 }
@@ -90,10 +79,24 @@ Silently terminates the named active VTL session if it exists.
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-VTLSessionManager-initExampleSessions"></a>}}
+\if{latex}{\out{\hypertarget{method-VTLSessionManager-initExampleSessions}{}}}
+\subsection{Method \code{initExampleSessions()}}{
+Initializes all VTL example sessions.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{VTLSessionManagerClass$initExampleSessions()}\if{html}{\out{</div>}}
+}
+
+\subsection{Details}{
+All examples from the VTL documentation are compiled and added to the list of active sessions
+}
+
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VTLSessionManager-getOrCreate"></a>}}
 \if{latex}{\out{\hypertarget{method-VTLSessionManager-getOrCreate}{}}}
 \subsection{Method \code{getOrCreate()}}{
-If the named VTL session exists, return it, otherwise create a new VTL session with the given name and possibly code.
+Get or create a VTL session
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VTLSessionManagerClass$getOrCreate(sessionID)}\if{html}{\out{</div>}}
 }
@@ -101,11 +104,14 @@ If the named VTL session exists, return it, otherwise create a new VTL session w
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{sessionID}}{The session to retrieve or create
-The name of the session to create}
+\item{\code{sessionID}}{The session to retrieve or create}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Details}{
+If the named VTL session exists, return it, otherwise create a new VTL session with the given name and possibly code.
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VTLSessionManager-reload"></a>}}
@@ -114,6 +120,28 @@ The name of the session to create}
 Reload the configuration of the current session, reloading the repository and the environments.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VTLSessionManagerClass$reload()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-VTLSessionManager-load_config"></a>}}
+\if{latex}{\out{\hypertarget{method-VTLSessionManager-load_config}{}}}
+\subsection{Method \code{load_config()}}{
+Load a VTL configuration file
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{VTLSessionManagerClass$load_config(propfile = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{propfile}}{the property file path}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Details}{
+load_config will read the VTL configuration from a specified .properties file. if the file
+is not specified, a default file named vtlStudio.properties from the user home directory will be opened.
 }
 
 }
