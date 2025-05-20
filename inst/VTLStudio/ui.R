@@ -18,7 +18,6 @@
 # permissions and limitations under the License.
 #
 
-library(RVTL)
 library(bslib)
 
 labels <- list(
