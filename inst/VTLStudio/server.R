@@ -18,6 +18,7 @@
 # permissions and limitations under the License.
 #
 
+library(RVTL)
 library(bslib)
 
 repoImpls <- c(
